@@ -14,7 +14,7 @@ let normal = '00 23 9 * *' // At 23:00 on day-of-month 9.
 let trial = '13 00 6 * *' 
 new CronJob(normal, function () {
   console.log(`Cron running ...`)
-  // checkTunggakan()
+  checkTunggakan()
 }, null, true, 'Asia/Jakarta')
 
 app.listen(port, () => console.log(`App listening on port ${port} ...`))

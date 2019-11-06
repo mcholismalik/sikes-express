@@ -3,27 +3,56 @@ import Axios from 'axios'
 import moment from 'moment'
 import { Vpembayaran } from '../models'
 
-export const checkTunggakan = async () => {
-  const tahun = moment().year()
-  const bulan_ke = moment().month() + 1
-
-  const data = await Vpembayaran.findAll({
-    where: { nominal_sisa: { [Op.gt]: 0 }, tahun, bulan_ke },
-    raw: true
+export const checkBulanan = async () => {
+  const type = 'bulanan'
+  await checkTunggakan(type).catch(err => {
+    console.log(`Check tunggakan ${type} error`)
+    console.log(err)
   })
-
-  data.map(async v => {
-    let msg = `Harap membayarkan tunggakan ${v.tarif_tipe} tahun ${v.tahun}, bulan ke ${v.bulan_ke}, kelas ${v.kelas}, untuk siswa bernama ${v.nama}`
-    await smsTagihan(v.no_ortu, msg)
-    console.log(`Send sms tagihan ke ${v.no_ortu} ${v.nama} ...`)
+}
+export const checkCicilan = async () => {
+  const type = 'cicilan'
+  await checkTunggakan(type).catch(err => {
+    console.log(`Check tunggakan ${type} error`)
+    console.log(err)
   })
-  console.log(`Check tunggakan tahun ${tahun} bulan_ke ${bulan_ke} ...`)
+}
+export const checkTunggakan = async type => {
+  try {
+    const tahun = moment().year()
+    const bulan_ke = moment().month() + 1
+    console.log(`Check tunggakan (${type}) tahun ${tahun} bulan_ke ${bulan_ke} started ...`)
+
+    let whereParam = (type == 'bulanan')
+      ? { nominal_sisa: { [Op.gt]: 0 }, tahun, bulan_ke }
+      : { nominal_sisa: { [Op.gt]: 0 } }
+
+    const data = await Vpembayaran.findAll({
+      where: whereParam,
+      raw: true
+    })
+
+    let sends = data.map(async v => {
+      let { tarif_tipe, nis, nama, kelas, nominal_sisa } = v
+      let msg = smsTemplate({ tarif_tipe, nis, nama, kelas, nominal_sisa, tahun, bulan_ke })
+      await smsTagihan(v.no_ortu, msg)
+    })
+    await Promise.all(sends)
+    console.log(`Check tunggakan (${type}) tahun ${tahun} bulan_ke ${bulan_ke} finished (${data.length}) ...`)
+  } catch (err) {
+    throw err
+  }
 }
 
 export const smsTagihan = async (number, msg) => {
   const user = 'AvrielDG'
-  const key = 'd14206dae11253222bdaa88d910f585e'
+  const key = process.env.KEY
   await Axios.get(`http://sms241.xyz/sms/smsmasking.php?username=${user}&key=${key}&number=${number}&message=${msg}`)
     .then(res => console.log(`Send sms ${number} success ...`))
     .catch(err => console.log(`Send sms ${number} error ...`))
+}
+
+const smsTemplate = v => {
+  const msg = `Diharapkan untuk siswa bernama ${v.nama} (${v.nis}) segera membayarkan tunggakan ${v.tarif_tipe} sebesar  Rp ${v.nominal_sisa}, untuk tahun ${v.tahun}, bulan ke ${v.bulan_ke}, kelas ${v.kelas}`
+  return msg
 }

@@ -24,8 +24,8 @@ export const checkTunggakan = async type => {
     console.log(`Check tunggakan (${type}) tahun ${tahun} bulan_ke ${bulan_ke} started ...`)
 
     let whereParam = (type == 'bulanan')
-      ? { nominal_sisa: { [Op.gt]: 0 }, tahun, bulan_ke }
-      : { nominal_sisa: { [Op.gt]: 0 } }
+      ? { nominal_sisa: { [Op.gt]: 0 }, transaction_type: type, tahun, bulan_ke }
+      : { nominal_sisa: { [Op.gt]: 0 }, transaction_type: type }
 
     const data = await Vpembayaran.findAll({
       where: whereParam,

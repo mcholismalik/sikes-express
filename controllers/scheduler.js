@@ -1,7 +1,7 @@
 import { Op } from 'sequelize'
 import Axios from 'axios'
 import moment from 'moment'
-import { Vpembayaran } from '../models'
+import { Vpembayaran, MessageSent } from '../models'
 
 export const checkBulanan = async () => {
   const type = 'bulanan'
@@ -33,9 +33,9 @@ export const checkTunggakan = async type => {
     })
 
     let sends = data.map(async v => {
-      let { tarif_tipe, nis, nama, kelas, nominal_sisa } = v
-      let msg = smsTemplate({ tarif_tipe, nis, nama, kelas, nominal_sisa, tahun, bulan_ke })
+      let msg = smsTemplate(v)
       await smsTagihan(v.no_ortu, msg)
+      await saveHistorySms(v.siswa_id, v.no_ortu, v.nominal_sisa, msg)
     })
     await Promise.all(sends)
     console.log(`Check tunggakan (${type}) tahun ${tahun} bulan_ke ${bulan_ke} finished (${data.length}) ...`)
@@ -47,7 +47,8 @@ export const checkTunggakan = async type => {
 export const smsTagihan = async (number, msg) => {
   const user = 'AvrielDG'
   const key = process.env.KEY
-  await Axios.get(`http://sms241.xyz/sms/smsmasking.php?username=${user}&key=${key}&number=${number}&message=${msg}`)
+  const url = `http://sms241.xyz/sms/smsmasking.php?username=${user}&key=${key}&number=${number}&message=${msg}`
+  await Axios.get(url)
     .then(res => console.log(`Send sms ${number} success ...`))
     .catch(err => console.log(`Send sms ${number} error ...`))
 }
@@ -55,4 +56,18 @@ export const smsTagihan = async (number, msg) => {
 const smsTemplate = v => {
   const msg = `Diharapkan untuk siswa bernama ${v.nama} (${v.nis}) segera membayarkan tunggakan ${v.tarif_tipe} sebesar  Rp ${v.nominal_sisa}, untuk tahun ${v.tahun}, bulan ke ${v.bulan_ke}, kelas ${v.kelas}`
   return msg
+}
+
+const saveHistorySms = async (siswa_id, no_ortu, nominal_sisa, msg) => {
+  const data = {
+    siswa_id,
+    no_ortu,
+    message_type: 'reminder',
+    message_text: msg,
+    nominal: nominal_sisa
+  }
+  console.log(data)
+  await MessageSent.create(data)
+    .then(res => console.log(`Save history sms ${no_ortu} success ...`))
+    .catch(err => console.log(`Save history sms ${number} error ...`))
 }

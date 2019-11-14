@@ -1,4 +1,3 @@
-import moment from 'moment'
 import db from '../utils/dbConfig'
 import { Model, DataTypes } from 'sequelize'
 
